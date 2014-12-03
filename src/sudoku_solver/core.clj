@@ -105,3 +105,21 @@
       (fn [accume n] (if (contains? set n) (str accume " x ") (str accume " o "))) " "row)) grd))
 
 (def grid (map (fn [n] (map (fn [nn] [n nn]) (range 1 (inc 9)))) (range 1 (inc 9))))
+
+(defn initial-board [entries]
+  (let [options (set (range 1 (inc 9)))] 
+    (reduce (fn [accume n] (assoc accume n options)) {} entries)))
+
+(defn apply-influence [board point]
+  (let [influence (influence-sets point)
+        val (first (board point))]
+    (reduce 
+     (fn [accume n] 
+       (if (not (= n point))
+         (assoc accume n (disj (board n) val))
+         accume)) 
+     board 
+     influence)))
+
+(defn make-selection [board point val]
+  (assoc board point #{val}))
