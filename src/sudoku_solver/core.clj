@@ -340,3 +340,5 @@
    "  1    68"
    "  85   1 "
    " 9    4  "])
+
+;(def solution (solve (populate-with-example (convert-to-entries raw-super-super-hard-board))))
