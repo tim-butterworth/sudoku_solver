@@ -214,7 +214,13 @@
               true))
 
 (defn partition-solved [boards]
-  ())
+  (reduce (fn [accume board]
+            (let [remainder (accume :remainder)
+                  solved (accume :solved)]
+              (if (is-solved board)
+                (assoc accume :solved (conj solved board))
+                (assoc accume :remainder (conj remainder board))))) 
+          {:remainder #{} :solved #{}} boards))
 
 (defn solve [board]
   (loop [possible-boards #{board} solutions #{}]
@@ -223,7 +229,7 @@
       (let [moved (breadth-first-move possible-boards)
             valid-move (filter-invalid moved)
             boards (partition-solved valid-move)]
-        (recur (boards :remainder) (merge solution (boards :solved)))))))
+        (recur (boards :remainder) (reduce (fn [accume n] (conj accume n)) solutions (boards :solved)))))))
 
 (defn populate-with-example [initial-data]
   (loop [vals (keys initial-data) accume (initial-board entries)]
@@ -234,6 +240,29 @@
 
 (defn pretty-print-board [board]
   (println (clojure.string/join "\n" (print-board board grid))))
+
+(defn gather-vals [row row-data gathered]
+  (let [cs (inc (. row-data length))]
+    (reduce (fn [accume column] 
+              (let [val (. row-data substring (dec column) column)]
+                (if (= val " ")
+                  accume
+                  (assoc accume [row column] (. Integer parseInt val)))))
+          gathered
+          (range 1 cs))))
+
+(defn convert-to-entries [raw-board]
+  (loop [rows raw-board accume {} row 1] 
+    (if (empty? rows)
+      accume
+      (let [row-data (first rows)
+            remainder (rest rows)]
+        (recur remainder
+               (gather-vals row row-data accume)
+               (inc row))))))
+
+
+;;; Examples
 
 (def example
 {[2 2] 8
@@ -290,22 +319,13 @@
    "46   8  3"
    " 7 6   5 "])
 
-(defn gather-vals [row row-data gathered]
-  (let [cs (inc (. row-data length))]
-    (reduce (fn [accume column] 
-              (let [val (. row-data substring (dec column) column)]
-                (if (= val " ")
-                  accume
-                  (assoc accume [row column] (. Integer parseInt val)))))
-          gathered
-          (range 1 cs))))
-
-(defn convert-to-entries [raw-board]
-  (loop [rows raw-board accume {} row 1] 
-    (if (empty? rows)
-      accume
-      (let [row-data (first rows)
-            remainder (rest rows)]
-        (recur remainder
-               (gather-vals row row-data accume)
-               (inc row))))))
+(def raw-super-hard-board
+  ["  53     "
+   "8      2 "
+   " 7  1 5  "
+   "4    53  "
+   " 1  7   6"
+   "  32   8 "
+   " 6 5    9"
+   "  4    3 "
+   "     97  "])
