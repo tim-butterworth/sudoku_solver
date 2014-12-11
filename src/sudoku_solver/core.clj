@@ -191,13 +191,30 @@
           #{} 
           boards))
 
+(defn first-fail [lst test basis]
+  (loop [vals lst]
+    (if (empty? vals)
+      basis
+      (let [val (first vals)
+            remain (rest vals)]
+        (if (not (test val))
+          (not basis)
+          (recur remain))))))
+
 (defn filter-invalid [boards]
   (filter (fn [board]
-            (reduce (fn [accume n]
-                      (and accume (not (= 0 (count (board n))))))
-                    true
-                    entries)) 
+            (first-fail entries 
+                        (fn [n] (not (empty? (board n)))) 
+                        true))
           boards))
+
+(defn is-solved [board]
+  (first-fail entries 
+              (fn [n] (= 1 (count (board n)))) 
+              true))
+
+(defn partition-solved [boards]
+  ())
 
 (defn solve [board]
   (loop [possible-boards #{board} solutions #{}]
@@ -221,7 +238,6 @@
 (def example
 {[2 2] 8
  [2 3] 2
- [3 2] 4
  [2 4] 3
  [1 5] 6
  [1 9] 8
@@ -252,3 +268,44 @@
  [8 6] 4
  [7 8] 5})
 
+(def raw-hard-board
+  ["     67  "
+   " 7  4  9 "
+   "5  3 2   "
+   "6 8   5  "
+   " 9     8 "
+   "  1   4 2"
+   "   5 8  3"
+   " 1  9  7 "
+   "  42     "])
+
+(def raw-easy-board
+  [" 4   6 1 "
+   "2  5   37"
+   "  8 9    "
+   " 3   7   "
+   "  1   8  "
+   "   1   9 "
+   "    2 4  "
+   "46   8  3"
+   " 7 6   5 "])
+
+(defn gather-vals [row row-data gathered]
+  (let [cs (inc (. row-data length))]
+    (reduce (fn [accume column] 
+              (let [val (. row-data substring (dec column) column)]
+                (if (= val " ")
+                  accume
+                  (assoc accume [row column] (. Integer parseInt val)))))
+          gathered
+          (range 1 cs))))
+
+(defn convert-to-entries [raw-board]
+  (loop [rows raw-board accume {} row 1] 
+    (if (empty? rows)
+      accume
+      (let [row-data (first rows)
+            remainder (rest rows)]
+        (recur remainder
+               (gather-vals row row-data accume)
+               (inc row))))))
