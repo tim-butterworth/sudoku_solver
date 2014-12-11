@@ -98,11 +98,19 @@
     (reduce (fn [accume n] (sub-reduce accume n)) basis partitions)))
 
 ;for printing stuff
-(defn print-set [set grd] 
+(defn print-board [board grd] 
   (map 
    (fn [row] 
      (reduce 
-      (fn [accume n] (if (contains? set n) (str accume " x ") (str accume " o "))) " "row)) grd))
+      (fn [accume n] 
+        (let [entry (board n)]
+          (if (= 1 (count entry)) 
+            (str accume " " (first entry) " ") 
+            (if (= 0 (count entry))
+              (str accume " x ")
+              (str accume " _ "))
+            ))) " " row)) 
+   grd))
 
 (def grid (map (fn [n] (map (fn [nn] [n nn]) (range 1 (inc 9)))) (range 1 (inc 9))))
 
@@ -110,16 +118,137 @@
   (let [options (set (range 1 (inc 9)))] 
     (reduce (fn [accume n] (assoc accume n options)) {} entries)))
 
-(defn apply-influence [board point]
-  (let [influence (influence-sets point)
-        val (first (board point))]
-    (reduce 
-     (fn [accume n] 
-       (if (not (= n point))
-         (assoc accume n (disj (board n) val))
-         accume)) 
-     board 
-     influence)))
-
 (defn make-selection [board point val]
-  (assoc board point #{val}))
+  (let [s (board point)]
+    (assoc board point 
+           (reduce (fn [accume n] 
+                     (if (= n val) 
+                       accume
+                       (disj accume n))) s s))))
+
+(defn gather-changed [sub-set board val]
+  (reduce 
+   (fn [accume n] (let [current (board n)]
+                    (if (contains? current val)
+                      (assoc accume n (disj current val))
+                      accume)))
+   {}
+   sub-set))
+
+(defn next-influence-set [remainder updated used]
+  (reduce (fn [accume n] 
+            (if (and
+                 (not (contains? used n))
+                 (= 1 (count (updated n))))
+              (conj accume n)
+              accume))
+          remainder
+          (keys updated)))
+
+(defn next-board [board updated]
+  (reduce (fn [accume n] 
+            (assoc accume n (updated n))) 
+          board 
+          (keys updated)))
+
+(defn apply-influence [changed board]
+  (loop [influencers changed used #{} accume board]
+    (if (empty? influencers)
+      accume
+      (let [influence (first influencers)
+            val (first (accume influence))
+            remainder (rest influencers)
+            influence-set (disj (influence-sets influence) influence)
+            updated-used (conj used influence)
+            updated (gather-changed influence-set accume val)]
+        (recur 
+         (next-influence-set remainder updated updated-used) ;influencers 
+         updated-used                                        ;used
+         (next-board accume updated))))))                    ;board
+
+(defn update-board [board point val]
+  (apply-influence [point] (make-selection board point val)))
+
+(defn get-move [board]
+  (loop [options entries]
+    (if (empty? options)
+      {}
+      (let [point (first options)
+            picks (board point)]
+        (if (< 1 (count picks))
+          {point picks}
+          (recur (rest options)))))))
+
+(defn breadth-first-move [boards]
+  (reduce (fn [accume board] 
+            (let [moves (get-move board)
+                  point (first (keys moves))
+                  picks (moves point)]
+              (reduce (fn [sub-accume val]
+                        (conj sub-accume (update-board board point val)))
+                      accume
+                      picks))) 
+          #{} 
+          boards))
+
+(defn filter-invalid [boards]
+  (filter (fn [board]
+            (reduce (fn [accume n]
+                      (and accume (not (= 0 (count (board n))))))
+                    true
+                    entries)) 
+          boards))
+
+(defn solve [board]
+  (loop [possible-boards #{board} solutions #{}]
+    (if (empty? possible-boards)
+      solutions
+      (let [moved (breadth-first-move possible-boards)
+            valid-move (filter-invalid moved)
+            boards (partition-solved valid-move)]
+        (recur (boards :remainder) (merge solution (boards :solved)))))))
+
+(defn populate-with-example [initial-data]
+  (loop [vals (keys initial-data) accume (initial-board entries)]
+    (if (empty? vals)
+      accume
+      (let [k (first vals)]
+       (recur (rest vals) (update-board accume k (initial-data k)))))))
+
+(defn pretty-print-board [board]
+  (println (clojure.string/join "\n" (print-board board grid))))
+
+(def example
+{[2 2] 8
+ [2 3] 2
+ [3 2] 4
+ [2 4] 3
+ [1 5] 6
+ [1 9] 8
+ [2 5] 7
+ [3 6] 9
+ [3 7] 3
+ [3 8] 7
+ [4 1] 7
+ [5 1] 4
+ [6 1] 8
+ [6 2] 2
+ [4 3] 9
+ [5 3] 3
+ [5 4] 2
+ [5 6] 7
+ [5 7] 9
+ [6 7] 5
+ [4 8] 8
+ [4 9] 4
+ [5 9] 1
+ [6 9] 7
+ [7 2] 1
+ [9 1] 9
+ [7 3] 4
+ [7 4] 7
+ [8 5] 3
+ [9 5] 1
+ [8 6] 4
+ [7 8] 5})
+
