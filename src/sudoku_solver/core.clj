@@ -48,11 +48,6 @@
    []
    basis))
 
-(defn next-box [x1 y1 x2 y2 max] 
-  (loop [x1 x1 y1 y1 x2 x2 y2 y2 accume [[x1 y1 x2 y2]]]
-    (if )
-    (recur )))
-
 (defn square-partition [x1 y1 x2 y2]
   (pop-one-lvl 
    (map 
